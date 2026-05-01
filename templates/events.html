@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-4 align-items-center">
+    <div class="col-md-6">
+        <h2><i class="fas fa-calendar-alt text-success"></i> Events</h2>
+    </div>
+    <div class="col-md-6 text-end">
+        <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addEventModal">
+            <i class="fas fa-plus"></i> Add New Event
+        </button>
+    </div>
+</div>
+
+<div class="card shadow-sm rounded">
+    <div class="card-body">
+        <!-- Search Form -->
+        <form method="GET" action="/events" class="mb-3">
+            <div class="input-group">
+                <input type="text" class="form-control form-control-lg" name="search" placeholder="Search Events by Name..." value="{{ search_term }}">
+                <button class="btn btn-outline-success" type="submit"><i class="fas fa-search"></i> Search</button>
+                {% if search_term %}
+                <a href="/events" class="btn btn-outline-secondary"><i class="fas fa-times"></i> Clear</a>
+                {% endif %}
+            </div>
+        </form>
+
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>ID</th>
+                        <th>Event Name</th>
+                        <th>Date</th>
+                        <th>Total Attendees</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in events_data %}
+                    <tr>
+                        <td>{{ item.event.id }}</td>
+                        <td>
+                            <a href="/events/{{ item.event.id }}" class="text-decoration-none fw-bold text-success">
+                                {{ item.event.name }}
+                            </a>
+                        </td>
+                        <td>{{ item.event.date }}</td>
+                        <td>
+                            <span class="badge bg-success rounded-pill px-3">{{ item.total }}</span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% if not events_data %}
+                    <tr>
+                        <td colspan="4" class="text-center text-muted">No events found.</td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Add Event Modal -->
+<div class="modal fade" id="addEventModal" tabindex="-1" aria-labelledby="addEventModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title" id="addEventModalLabel">Add New Event</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form action="/events/add" method="post">
+          <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Event Name</label>
+                    <input type="text" class="form-control" name="name" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Event Date</label>
+                    <input type="date" class="form-control" name="event_date" required>
+                </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-success">Save Event</button>
+          </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

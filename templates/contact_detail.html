@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-4 mb-4">
+        <!-- Contact Info Card -->
+        <div class="card shadow-sm rounded">
+            <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                <h4 class="mb-0"><i class="fas fa-user-circle"></i> {{ contact.name }}</h4>
+                <button class="btn btn-sm btn-light text-info" data-bs-toggle="modal" data-bs-target="#editContactModal">
+                    <i class="fas fa-edit"></i> Edit Profile
+                </button>
+            </div>
+            <div class="card-body">
+                <p><strong><i class="fas fa-phone-alt text-muted"></i> Phone:</strong> {{ contact.phone }}</p>
+                
+                <h6 class="mt-4 border-bottom pb-2">Extra Information</h6>
+                {% if contact.extra_info %}
+                    <div class="d-grid gap-2">
+                    {% for key, value in contact.extra_info.items() %}
+                        <div class="p-2 border rounded bg-light d-flex justify-content-between align-items-center">
+                            <span class="text-capitalize fw-bold text-secondary">{{ key }}</span>
+                            <span class="text-dark">{{ value }}</span>
+                        </div>
+                    {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-muted fst-italic">No extra information available.</p>
+                {% endif %}
+                
+                <a href="/" class="btn btn-outline-secondary mt-3 w-100"><i class="fas fa-arrow-left"></i> Back to List</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-8">
+        <!-- Event History -->
+        <div class="card shadow-sm rounded mb-4">
+            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-history"></i> Event History</h5>
+            </div>
+            <div class="card-body">
+                {% if contact.attendances %}
+                    <ul class="list-group">
+                        {% for att in contact.attendances %}
+                        <li class="list-group-item">
+                            <div class="d-flex w-100 justify-content-between align-items-center">
+                                <strong>{{ att.event.name }}</strong>
+                                <span class="badge bg-light text-dark"><i class="far fa-calendar"></i> {{ att.event.date }}</span>
+                            </div>
+                            {% if att.companions > 0 %}
+                            <small class="text-muted"><i class="fas fa-users"></i> Companions (Rombongan): {{ att.companions }}</small>
+                            {% endif %}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="text-muted">This person has not attended any events yet.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Add to Event Form -->
+        <div class="card shadow-sm rounded border-primary">
+            <div class="card-body">
+                <h5 class="card-title text-primary"><i class="fas fa-calendar-plus"></i> Add to Event</h5>
+                <p class="card-text">Record attendance for an event.</p>
+                <form action="/contact/{{ contact.id }}/attend" method="post" class="row g-3 align-items-center">
+                    <div class="col-md-6">
+                        <select name="event_id" class="form-select" required>
+                            <option value="">Select Event...</option>
+                            {% for event in events %}
+                                <option value="{{ event.id }}">{{ event.name }} ({{ event.date }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <input type="number" class="form-control" name="companions" placeholder="Companions" value="0" min="0" required>
+                    </div>
+                    <div class="col-md-3">
+                        <button type="submit" class="btn btn-primary w-100">Record</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Contact Modal -->
+<div class="modal fade" id="editContactModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-warning">
+        <h5 class="modal-title">Edit Profile</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form action="/contact/{{ contact.id }}/edit" method="post">
+          <input type="hidden" name="update_extra" value="true">
+          <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Name</label>
+                    <input type="text" class="form-control" name="name" value="{{ contact.name }}" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Phone</label>
+                    <input type="text" class="form-control" name="phone" value="{{ contact.phone }}" required>
+                </div>
+                <hr>
+                <h6>Extra Information (Optional)</h6>
+                <div id="editExtraFieldsContainer">
+                    {% if contact.extra_info %}
+                        {% for key, value in contact.extra_info.items() %}
+                        <div class="row mb-2 extra-field-row">
+                            <div class="col-5">
+                                <input type="text" class="form-control" name="extra_keys" placeholder="Key" value="{{ key }}">
+                            </div>
+                            <div class="col-7">
+                                <div class="input-group">
+                                    <input type="text" class="form-control" name="extra_values" placeholder="Value" value="{{ value }}">
+                                    <button type="button" class="btn btn-outline-danger remove-field-btn"><i class="fas fa-trash"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% endif %}
+                    <div class="row mb-2 extra-field-row">
+                        <div class="col-5">
+                            <input type="text" class="form-control" name="extra_keys" placeholder="Key (e.g. Address)">
+                        </div>
+                        <div class="col-7">
+                            <div class="input-group">
+                                <input type="text" class="form-control" name="extra_values" placeholder="Value">
+                                <button type="button" class="btn btn-outline-danger remove-field-btn"><i class="fas fa-trash"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-secondary mt-2" id="editAddFieldBtn">
+                    <i class="fas fa-plus"></i> Add Field
+                </button>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-warning">Update Profile</button>
+          </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.getElementById('editAddFieldBtn').addEventListener('click', function() {
+        let container = document.getElementById('editExtraFieldsContainer');
+        let newRow = document.createElement('div');
+        newRow.className = 'row mb-2 extra-field-row';
+        newRow.innerHTML = `
+            <div class="col-5">
+                <input type="text" class="form-control" name="extra_keys" placeholder="Key">
+            </div>
+            <div class="col-7">
+                <div class="input-group">
+                    <input type="text" class="form-control" name="extra_values" placeholder="Value">
+                    <button type="button" class="btn btn-outline-danger remove-field-btn"><i class="fas fa-trash"></i></button>
+                </div>
+            </div>
+        `;
+        container.appendChild(newRow);
+
+        newRow.querySelector('.remove-field-btn').addEventListener('click', function() {
+            newRow.remove();
+        });
+    });
+
+    // Attach listener to existing remove buttons
+    document.querySelectorAll('#editExtraFieldsContainer .remove-field-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            this.closest('.extra-field-row').remove();
+        });
+    });
+</script>
+{% endblock %}

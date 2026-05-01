@@ -1,0 +1,264 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-4 align-items-center">
+    <div class="col-md-6">
+        <h2><i class="fas fa-users text-primary"></i> Umat Contacts</h2>
+    </div>
+    <div class="col-md-6 text-end">
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addContactModal">
+            <i class="fas fa-plus"></i> Add New Contact
+        </button>
+    </div>
+</div>
+
+<div class="card shadow-sm rounded">
+    <div class="card-body">
+        <div class="mb-3">
+            <input type="text" id="searchInput" class="form-control form-control-lg"
+                placeholder="Global Search (Name or Phone)">
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle" id="contactsTable">
+                <thead class="table-light">
+                    <tr>
+                        <th>Name</th>
+                        <th>Phone</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for contact in contacts %}
+                    <tr data-search="{{ contact.name }} {{ contact.phone }} {{ contact.extra_info | tojson }}">
+                        <!-- Make the name clickable to go to details -->
+                        <td>
+                            <a href="/contact/{{ contact.id }}" class="text-decoration-none fw-bold">
+                                {{ contact.name }}
+                            </a>
+                        </td>
+                        <td>{{ contact.phone }}</td>
+                        <td>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-sm btn-outline-success"
+                                    onclick="openQuickAddModal({{ contact.id }}, '{{ contact.name }}')">
+                                    <i class="fas fa-calendar-plus"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-warning"
+                                    onclick="openEditContactModal({{ contact.id }}, '{{ contact.name }}', '{{ contact.phone }}')">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger"
+                                    onclick="openDeleteContactModal({{ contact.id }}, '{{ contact.name }}')">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Add Contact Modal -->
+<div class="modal fade" id="addContactModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">Add New Contact</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                    aria-label="Close"></button>
+            </div>
+            <form action="/contact/add" method="post">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Name</label>
+                        <input type="text" class="form-control" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Phone</label>
+                        <input type="text" class="form-control" name="phone" required>
+                    </div>
+                    <hr>
+                    <h6>Extra Information (Optional)</h6>
+                    <div id="extraFieldsContainer">
+                        <div class="row mb-2 extra-field-row">
+                            <div class="col-5">
+                                <input type="text" class="form-control" name="extra_keys"
+                                    placeholder="Key (e.g. Address)">
+                            </div>
+                            <div class="col-7">
+                                <input type="text" class="form-control" name="extra_values" placeholder="Value">
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-secondary mt-2" id="addFieldBtn">
+                        <i class="fas fa-plus"></i> Add Field
+                    </button>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Contact</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Contact Modal -->
+<div class="modal fade" id="editContactModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title">Edit Contact</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="editContactForm" method="post">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Name</label>
+                        <input type="text" class="form-control" name="name" id="editContactName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Phone</label>
+                        <input type="text" class="form-control" name="phone" id="editContactPhone" required>
+                    </div>
+                    <div class="alert alert-info py-2">
+                        <small>Note: Editing extra_info keys is not supported in this basic UI.</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning">Update Contact</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Contact Modal -->
+<div class="modal fade" id="deleteContactModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">Delete Contact</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                    aria-label="Close"></button>
+            </div>
+            <form id="deleteContactForm" method="post">
+                <div class="modal-body">
+                    <p>Are you sure you want to delete <strong id="deleteContactName"></strong>?</p>
+                    <p class="text-danger"><small>This will also remove their event attendance history!</small></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger">Yes, Delete</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Add to Event Modal -->
+<div class="modal fade" id="quickAddModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">Quick Add to Event</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                    aria-label="Close"></button>
+            </div>
+            <form action="/contact/quick-attend" method="post">
+                <div class="modal-body">
+                    <p>Register <strong id="quickAddContactName"></strong> for an event.</p>
+                    <input type="hidden" name="contact_id" id="quickAddContactId">
+                    <div class="mb-3">
+                        <label class="form-label">Event</label>
+                        <select name="event_id" class="form-select" required>
+                            <option value="">Select Event...</option>
+                            {% for event in events %}
+                            <option value="{{ event.id }}">{{ event.name }} ({{ event.date }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Companions (Rombongan)</label>
+                        <input type="number" class="form-control" name="companions" value="0" min="0" required>
+                        <div class="form-text">Number of additional people brought by this contact.</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">Register</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Global Search Functionality
+    document.getElementById('searchInput').addEventListener('keyup', function () {
+        let filter = this.value.toLowerCase();
+        let rows = document.querySelectorAll('#contactsTable tbody tr');
+
+        rows.forEach(row => {
+            let searchData = row.getAttribute('data-search').toLowerCase();
+            if (searchData.includes(filter)) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    });
+
+    // Dynamic Extra Fields in Add Modal
+    document.getElementById('addFieldBtn').addEventListener('click', function () {
+        let container = document.getElementById('extraFieldsContainer');
+        let newRow = document.createElement('div');
+        newRow.className = 'row mb-2 extra-field-row';
+        newRow.innerHTML = `
+            <div class="col-5">
+                <input type="text" class="form-control" name="extra_keys" placeholder="Key">
+            </div>
+            <div class="col-7">
+                <div class="input-group">
+                    <input type="text" class="form-control" name="extra_values" placeholder="Value">
+                    <button type="button" class="btn btn-outline-danger remove-field-btn"><i class="fas fa-trash"></i></button>
+                </div>
+            </div>
+        `;
+        container.appendChild(newRow);
+
+        newRow.querySelector('.remove-field-btn').addEventListener('click', function () {
+            newRow.remove();
+        });
+    });
+
+    function openQuickAddModal(contactId, contactName) {
+        document.getElementById('quickAddContactId').value = contactId;
+        document.getElementById('quickAddContactName').innerText = contactName;
+        var modal = new bootstrap.Modal(document.getElementById('quickAddModal'));
+        modal.show();
+    }
+
+    function openEditContactModal(contactId, contactName, contactPhone) {
+        document.getElementById('editContactForm').action = "/contact/" + contactId + "/edit";
+        document.getElementById('editContactName').value = contactName;
+        document.getElementById('editContactPhone').value = contactPhone;
+        var modal = new bootstrap.Modal(document.getElementById('editContactModal'));
+        modal.show();
+    }
+
+    function openDeleteContactModal(contactId, contactName) {
+        document.getElementById('deleteContactForm').action = "/contact/" + contactId + "/delete";
+        document.getElementById('deleteContactName').innerText = contactName;
+        var modal = new bootstrap.Modal(document.getElementById('deleteContactModal'));
+        modal.show();
+    }
+</script>
+{% endblock %}
