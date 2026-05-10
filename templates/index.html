@@ -6,6 +6,11 @@
         <h2><i class="fas fa-users text-primary"></i> Umat Contacts</h2>
     </div>
     <div class="col-md-6 text-end">
+        {% if admin.role == 'superadmin' %}
+        <button class="btn btn-outline-info me-2" data-bs-toggle="modal" data-bs-target="#manageTagsModal">
+            <i class="fas fa-tags"></i> Manage Tags
+        </button>
+        {% endif %}
         <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addContactModal">
             <i class="fas fa-plus"></i> Add New Contact
         </button>
@@ -14,9 +19,27 @@
 
 <div class="card shadow-sm rounded">
     <div class="card-body">
-        <div class="mb-3">
-            <input type="text" id="searchInput" class="form-control form-control-lg"
-                placeholder="Global Search (Name or Phone)">
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <input type="text" id="searchInput" class="form-control form-control-lg"
+                    placeholder="Global Search (Name or Phone)">
+            </div>
+            <div class="col-md-3">
+                <select id="eventFilter" class="form-select form-select-lg">
+                    <option value="">All Events</option>
+                    {% for event in events %}
+                    <option value="{{ event.name }}">{{ event.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select id="tagFilter" class="form-select form-select-lg">
+                    <option value="">All Tags</option>
+                    {% for tag in all_tags %}
+                    <option value="{{ tag.name }}">{{ tag.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
         </div>
         <div class="table-responsive">
             <table class="table table-hover align-middle" id="contactsTable">
@@ -24,19 +47,52 @@
                     <tr>
                         <th>Name</th>
                         <th>Phone</th>
+                        <th>Events Attended</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for contact in contacts %}
-                    <tr data-search="{{ contact.name }} {{ contact.phone }} {{ contact.extra_info | tojson }}">
+                    {% set contact_tag_names = contact.tags | map(attribute='name') | join(' ') %}
+                    {% set contact_event_names = contact.attendances | map(attribute='event.name') | join(' ') %}
+                    <tr data-search="{{ contact.name }} {{ contact.phone }} {{ contact.extra_info | tojson }} {{ contact.tags | map(attribute='name') | join(' ') }} {{ contact.attendances | map(attribute='event.name') | join(' ') }}"
+                        data-tags="{{ contact.tags | map(attribute='name') | join('||') }}"
+                        data-events="{{ contact.attendances | map(attribute='event.name') | join('||') }}">
                         <!-- Make the name clickable to go to details -->
                         <td>
-                            <a href="/contact/{{ contact.id }}" class="text-decoration-none fw-bold">
+                            <a href="/contact/{{ contact.id }}" class="text-decoration-none fw-bold d-block">
                                 {{ contact.name }}
                             </a>
+                            <div class="mt-1">
+                                {% set sorted_tags = contact.tags | sort(attribute='id', reverse=True) %}
+                                {% for t in sorted_tags[:2] %}
+                                <span class="badge bg-{{ t.color }}">{{ t.name }}</span>
+                                {% endfor %}
+                                {% if sorted_tags|length > 2 %}
+                                {% set extra_tags = sorted_tags[2:] | map(attribute='name') | join(', ') %}
+                                <span class="badge bg-light text-dark border" data-bs-toggle="tooltip" title="{{ extra_tags }}">
+                                    +{{ sorted_tags|length - 2 }} more
+                                </span>
+                                {% endif %}
+                            </div>
                         </td>
                         <td>{{ contact.phone }}</td>
+                        <td>
+                            {% if contact.attendances %}
+                                {% set sorted_attendances = contact.attendances | sort(attribute='event.date', reverse=True) %}
+                                {% for att in sorted_attendances[:2] %}
+                                <span class="badge bg-secondary mb-1"><i class="fas fa-calendar-check"></i> {{ att.event.name }}</span>
+                                {% endfor %}
+                                {% if sorted_attendances|length > 2 %}
+                                {% set extra_events = sorted_attendances[2:] | map(attribute='event.name') | join(', ') %}
+                                <span class="badge bg-light text-dark border mb-1" data-bs-toggle="tooltip" title="{{ extra_events }}">
+                                    +{{ sorted_attendances|length - 2 }} more
+                                </span>
+                                {% endif %}
+                            {% else %}
+                                <small class="text-muted fst-italic">None</small>
+                            {% endif %}
+                        </td>
                         <td>
                             <div class="d-flex gap-2">
                                 <button class="btn btn-sm btn-outline-success"
@@ -44,7 +100,8 @@
                                     <i class="fas fa-calendar-plus"></i>
                                 </button>
                                 <button class="btn btn-sm btn-outline-warning"
-                                    onclick="openEditContactModal({{ contact.id }}, '{{ contact.name }}', '{{ contact.phone }}')">
+                                    data-tags="[{{ contact.tags | map(attribute='id') | join(',') }}]"
+                                    onclick="openEditContactModal({{ contact.id }}, '{{ contact.name }}', '{{ contact.phone }}', this.getAttribute('data-tags'))">
                                     <i class="fas fa-edit"></i>
                                 </button>
                                 <button class="btn btn-sm btn-outline-danger"
@@ -79,6 +136,14 @@
                     <div class="mb-3">
                         <label class="form-label">Phone</label>
                         <input type="text" class="form-control" name="phone" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Tags</label>
+                        <select name="tag_ids" class="form-select select2-tags" multiple="multiple" style="width: 100%;">
+                            {% for tag in all_tags %}
+                            <option value="{{ tag.id }}">{{ tag.name }}</option>
+                            {% endfor %}
+                        </select>
                     </div>
                     <hr>
                     <h6>Extra Information (Optional)</h6>
@@ -123,6 +188,14 @@
                     <div class="mb-3">
                         <label class="form-label">Phone</label>
                         <input type="text" class="form-control" name="phone" id="editContactPhone" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Tags</label>
+                        <select name="tag_ids" id="editContactTags" class="form-select select2-tags" multiple="multiple" style="width: 100%;">
+                            {% for tag in all_tags %}
+                            <option value="{{ tag.id }}">{{ tag.name }}</option>
+                            {% endfor %}
+                        </select>
                     </div>
                     <div class="alert alert-info py-2">
                         <small>Note: Editing extra_info keys is not supported in this basic UI.</small>
@@ -197,22 +270,87 @@
     </div>
 </div>
 
+<!-- Manage Tags Modal -->
+{% if admin.role == 'superadmin' %}
+<div class="modal fade" id="manageTagsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title">Manage Tags</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form action="/tags/add" method="post" class="mb-4">
+                    <div class="input-group">
+                        <input type="text" name="name" class="form-control" placeholder="New Tag Name (e.g. Waisak)" required>
+                        <select name="color" class="form-select" style="max-width: 120px;">
+                            <option value="primary" class="text-primary">Blue</option>
+                            <option value="success" class="text-success">Green</option>
+                            <option value="danger" class="text-danger">Red</option>
+                            <option value="warning" class="text-warning">Yellow</option>
+                            <option value="info" class="text-info">Cyan</option>
+                            <option value="secondary" class="text-secondary">Gray</option>
+                            <option value="dark" class="text-dark">Black</option>
+                        </select>
+                        <button type="submit" class="btn btn-primary">Add</button>
+                    </div>
+                </form>
+                <ul class="list-group">
+                    {% for tag in all_tags %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span class="badge bg-{{ tag.color }}">{{ tag.name }}</span>
+                        <form action="/tags/{{ tag.id }}/delete" method="post" style="display:inline;">
+                            <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this tag?')"><i class="fas fa-trash"></i></button>
+                        </form>
+                    </li>
+                    {% else %}
+                    <li class="list-group-item text-center text-muted">No tags available.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 {% endblock %}
 
 {% block scripts %}
 <script>
-    // Global Search Functionality
-    document.getElementById('searchInput').addEventListener('keyup', function () {
-        let filter = this.value.toLowerCase();
+    // Global Search and Filter Functionality
+    function filterTable() {
+        let textFilter = document.getElementById('searchInput').value.toLowerCase();
+        let tagFilter = document.getElementById('tagFilter').value.toLowerCase();
+        let eventFilter = document.getElementById('eventFilter').value.toLowerCase();
         let rows = document.querySelectorAll('#contactsTable tbody tr');
 
         rows.forEach(row => {
             let searchData = row.getAttribute('data-search').toLowerCase();
-            if (searchData.includes(filter)) {
+            let tagsData = (row.getAttribute('data-tags') || "").toLowerCase().split('||');
+            let eventsData = (row.getAttribute('data-events') || "").toLowerCase().split('||');
+
+            let matchesText = textFilter === "" || searchData.includes(textFilter);
+            let matchesTag = tagFilter === "" || tagsData.includes(tagFilter);
+            let matchesEvent = eventFilter === "" || eventsData.includes(eventFilter);
+            
+            if (matchesText && matchesTag && matchesEvent) {
                 row.style.display = '';
             } else {
                 row.style.display = 'none';
             }
+        });
+    }
+
+    document.getElementById('searchInput').addEventListener('keyup', filterTable);
+    document.getElementById('tagFilter').addEventListener('change', filterTable);
+    document.getElementById('eventFilter').addEventListener('change', filterTable);
+
+    // Initialize Select2
+    $(document).ready(function() {
+        $('.select2-tags').select2({
+            placeholder: "Select tags",
+            allowClear: true,
+            tags: true
         });
     });
 
@@ -246,10 +384,16 @@
         modal.show();
     }
 
-    function openEditContactModal(contactId, contactName, contactPhone) {
+    function openEditContactModal(contactId, contactName, contactPhone, tagsData) {
         document.getElementById('editContactForm').action = "/contact/" + contactId + "/edit";
         document.getElementById('editContactName').value = contactName;
         document.getElementById('editContactPhone').value = contactPhone;
+        
+        let tagsArray = JSON.parse(tagsData || "[]");
+        // Convert numbers to strings for Select2 strict matching
+        tagsArray = tagsArray.map(String);
+        $('#editContactTags').val(tagsArray).trigger('change');
+        
         var modal = new bootstrap.Modal(document.getElementById('editContactModal'));
         modal.show();
     }

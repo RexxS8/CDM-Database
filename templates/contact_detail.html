@@ -13,6 +13,17 @@
             </div>
             <div class="card-body">
                 <p><strong><i class="fas fa-phone-alt text-muted"></i> Phone:</strong> {{ contact.phone }}</p>
+
+                <h6 class="mt-4 border-bottom pb-2">Tags / Labels</h6>
+                {% if contact.tags %}
+                    <div class="mb-3">
+                        {% for t in contact.tags %}
+                        <span class="badge bg-{{ t.color }} fs-6 mb-1">{{ t.name }}</span>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-muted fst-italic mb-3">No tags assigned.</p>
+                {% endif %}
                 
                 <h6 class="mt-4 border-bottom pb-2">Extra Information</h6>
                 {% if contact.extra_info %}
@@ -105,6 +116,15 @@
                     <label class="form-label">Phone</label>
                     <input type="text" class="form-control" name="phone" value="{{ contact.phone }}" required>
                 </div>
+                <div class="mb-3">
+                    <label class="form-label">Tags</label>
+                    <select name="tag_ids" class="form-select select2-tags" multiple="multiple" style="width: 100%;">
+                        {% set current_tags = contact.tags | map(attribute='id') | list %}
+                        {% for tag in all_tags %}
+                        <option value="{{ tag.id }}" {% if tag.id in current_tags %}selected{% endif %}>{{ tag.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
                 <hr>
                 <h6>Extra Information (Optional)</h6>
                 <div id="editExtraFieldsContainer">
@@ -152,6 +172,14 @@
 
 {% block scripts %}
 <script>
+    $(document).ready(function() {
+        $('.select2-tags').select2({
+            placeholder: "Select tags",
+            allowClear: true,
+            tags: true
+        });
+    });
+
     document.getElementById('editAddFieldBtn').addEventListener('click', function() {
         let container = document.getElementById('editExtraFieldsContainer');
         let newRow = document.createElement('div');
