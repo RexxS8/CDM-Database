@@ -76,7 +76,22 @@
                                 {% endif %}
                             </div>
                         </td>
-                        <td>{{ contact.phone }}</td>
+                        <td>
+                            {% if contact.phone %}
+                                {% set phones = contact.phone.split(',') %}
+                                {% set first_phone = phones[0].strip() %}
+                                {% if first_phone %}
+                                    <div class="mb-1"><span class="badge bg-light text-dark border"><i class="fas fa-phone-alt fa-xs text-muted"></i> {{ first_phone }}</span></div>
+                                    {% if phones|length > 1 %}
+                                        <span class="badge bg-light text-dark border" data-bs-toggle="tooltip" title="{{ phones[1:] | join(', ') }}">
+                                            +{{ phones|length - 1 }} more
+                                        </span>
+                                    {% endif %}
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted fst-italic">None</span>
+                            {% endif %}
+                        </td>
                         <td>
                             {% if contact.attendances %}
                                 {% set sorted_attendances = contact.attendances | sort(attribute='event.date', reverse=True) %}
@@ -136,6 +151,7 @@
                     <div class="mb-3">
                         <label class="form-label">Phone</label>
                         <input type="text" class="form-control" name="phone" required>
+                        <div class="form-text">Pisahkan dengan koma jika lebih dari 1 nomor (contoh: 0812..., 0856...)</div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Tags</label>
@@ -147,20 +163,30 @@
                     </div>
                     <hr>
                     <h6>Extra Information (Optional)</h6>
-                    <div id="extraFieldsContainer">
-                        <div class="row mb-2 extra-field-row">
-                            <div class="col-5">
-                                <input type="text" class="form-control" name="extra_keys"
-                                    placeholder="Key (e.g. Address)">
-                            </div>
-                            <div class="col-7">
-                                <input type="text" class="form-control" name="extra_values" placeholder="Value">
-                            </div>
+                    <div class="row g-2 mb-2">
+                        <div class="col-md-6">
+                            <label class="form-label text-muted small mb-0">Birthday (Tanggal Lahir)</label>
+                            <input type="text" class="form-control form-control-sm" name="birthday" placeholder="e.g. 1990-12-31">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted small mb-0">Organization (Organisasi)</label>
+                            <input type="text" class="form-control form-control-sm" name="organization" placeholder="e.g. KMB Dhammasena">
                         </div>
                     </div>
-                    <button type="button" class="btn btn-sm btn-outline-secondary mt-2" id="addFieldBtn">
-                        <i class="fas fa-plus"></i> Add Field
-                    </button>
+                    <div class="row g-2 mb-2">
+                        <div class="col-md-6">
+                            <label class="form-label text-muted small mb-0">Address (Alamat)</label>
+                            <input type="text" class="form-control form-control-sm" name="address" placeholder="e.g. Jl. Sudirman No 1">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted small mb-0">Emails</label>
+                            <input type="email" class="form-control form-control-sm" name="emails" placeholder="e.g. user@example.com">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted small mb-0">Other Information (Catatan Tambahan)</label>
+                        <textarea class="form-control form-control-sm" name="other_info" rows="2" placeholder="Informasi tambahan lainnya..."></textarea>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -188,6 +214,7 @@
                     <div class="mb-3">
                         <label class="form-label">Phone</label>
                         <input type="text" class="form-control" name="phone" id="editContactPhone" required>
+                        <div class="form-text">Pisahkan dengan koma jika lebih dari 1 nomor (contoh: 0812..., 0856...)</div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Tags</label>
@@ -354,28 +381,6 @@
         });
     });
 
-    // Dynamic Extra Fields in Add Modal
-    document.getElementById('addFieldBtn').addEventListener('click', function () {
-        let container = document.getElementById('extraFieldsContainer');
-        let newRow = document.createElement('div');
-        newRow.className = 'row mb-2 extra-field-row';
-        newRow.innerHTML = `
-            <div class="col-5">
-                <input type="text" class="form-control" name="extra_keys" placeholder="Key">
-            </div>
-            <div class="col-7">
-                <div class="input-group">
-                    <input type="text" class="form-control" name="extra_values" placeholder="Value">
-                    <button type="button" class="btn btn-outline-danger remove-field-btn"><i class="fas fa-trash"></i></button>
-                </div>
-            </div>
-        `;
-        container.appendChild(newRow);
-
-        newRow.querySelector('.remove-field-btn').addEventListener('click', function () {
-            newRow.remove();
-        });
-    });
 
     function openQuickAddModal(contactId, contactName) {
         document.getElementById('quickAddContactId').value = contactId;

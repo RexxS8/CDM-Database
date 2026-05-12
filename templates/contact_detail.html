@@ -12,7 +12,20 @@
                 </button>
             </div>
             <div class="card-body">
-                <p><strong><i class="fas fa-phone-alt text-muted"></i> Phone:</strong> {{ contact.phone }}</p>
+                <div class="mb-3 d-flex align-items-start">
+                    <strong class="me-2"><i class="fas fa-phone-alt text-muted"></i> Phone:</strong>
+                    <div>
+                    {% if contact.phone %}
+                        {% for p in contact.phone.split(',') %}
+                            {% if p.strip() %}
+                                <span class="badge bg-light text-dark border me-1 mb-1">{{ p.strip() }}</span>
+                            {% endif %}
+                        {% endfor %}
+                    {% else %}
+                        <span class="text-muted fst-italic">None</span>
+                    {% endif %}
+                    </div>
+                </div>
 
                 <h6 class="mt-4 border-bottom pb-2">Tags / Labels</h6>
                 {% if contact.tags %}
@@ -115,6 +128,7 @@
                 <div class="mb-3">
                     <label class="form-label">Phone</label>
                     <input type="text" class="form-control" name="phone" value="{{ contact.phone }}" required>
+                    <div class="form-text">Pisahkan dengan koma jika lebih dari 1 nomor</div>
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Tags</label>
@@ -127,37 +141,30 @@
                 </div>
                 <hr>
                 <h6>Extra Information (Optional)</h6>
-                <div id="editExtraFieldsContainer">
-                    {% if contact.extra_info %}
-                        {% for key, value in contact.extra_info.items() %}
-                        <div class="row mb-2 extra-field-row">
-                            <div class="col-5">
-                                <input type="text" class="form-control" name="extra_keys" placeholder="Key" value="{{ key }}">
-                            </div>
-                            <div class="col-7">
-                                <div class="input-group">
-                                    <input type="text" class="form-control" name="extra_values" placeholder="Value" value="{{ value }}">
-                                    <button type="button" class="btn btn-outline-danger remove-field-btn"><i class="fas fa-trash"></i></button>
-                                </div>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    {% endif %}
-                    <div class="row mb-2 extra-field-row">
-                        <div class="col-5">
-                            <input type="text" class="form-control" name="extra_keys" placeholder="Key (e.g. Address)">
-                        </div>
-                        <div class="col-7">
-                            <div class="input-group">
-                                <input type="text" class="form-control" name="extra_values" placeholder="Value">
-                                <button type="button" class="btn btn-outline-danger remove-field-btn"><i class="fas fa-trash"></i></button>
-                            </div>
-                        </div>
+                <div class="row g-2 mb-2">
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small mb-0">Birthday (Tanggal Lahir)</label>
+                        <input type="text" class="form-control form-control-sm" name="birthday" placeholder="e.g. 1990-12-31" value="{{ contact.extra_info.get('Birthday', '') }}">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small mb-0">Organization (Organisasi)</label>
+                        <input type="text" class="form-control form-control-sm" name="organization" placeholder="e.g. KMB Dhammasena" value="{{ contact.extra_info.get('organization', '') }}">
                     </div>
                 </div>
-                <button type="button" class="btn btn-sm btn-outline-secondary mt-2" id="editAddFieldBtn">
-                    <i class="fas fa-plus"></i> Add Field
-                </button>
+                <div class="row g-2 mb-2">
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small mb-0">Address (Alamat)</label>
+                        <input type="text" class="form-control form-control-sm" name="address" placeholder="e.g. Jl. Sudirman No 1" value="{{ contact.extra_info.get('address', '') }}">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small mb-0">Emails</label>
+                        <input type="email" class="form-control form-control-sm" name="emails" placeholder="e.g. user@example.com" value="{{ contact.extra_info.get('emails', '') }}">
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label text-muted small mb-0">Other Information (Catatan Tambahan)</label>
+                    <textarea class="form-control form-control-sm" name="other_info" rows="2" placeholder="Informasi tambahan lainnya...">{{ contact.extra_info.get('Other Information', '') }}</textarea>
+                </div>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -180,33 +187,5 @@
         });
     });
 
-    document.getElementById('editAddFieldBtn').addEventListener('click', function() {
-        let container = document.getElementById('editExtraFieldsContainer');
-        let newRow = document.createElement('div');
-        newRow.className = 'row mb-2 extra-field-row';
-        newRow.innerHTML = `
-            <div class="col-5">
-                <input type="text" class="form-control" name="extra_keys" placeholder="Key">
-            </div>
-            <div class="col-7">
-                <div class="input-group">
-                    <input type="text" class="form-control" name="extra_values" placeholder="Value">
-                    <button type="button" class="btn btn-outline-danger remove-field-btn"><i class="fas fa-trash"></i></button>
-                </div>
-            </div>
-        `;
-        container.appendChild(newRow);
-
-        newRow.querySelector('.remove-field-btn').addEventListener('click', function() {
-            newRow.remove();
-        });
-    });
-
-    // Attach listener to existing remove buttons
-    document.querySelectorAll('#editExtraFieldsContainer .remove-field-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            this.closest('.extra-field-row').remove();
-        });
-    });
 </script>
 {% endblock %}

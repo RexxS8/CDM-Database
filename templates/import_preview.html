@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card shadow-sm border-primary">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h4 class="mb-0"><i class="fas fa-file-import"></i> CSV Import Preview</h4>
+                <span class="badge bg-light text-dark fs-6">{{ preview_data|length }} Valid Rows</span>
+            </div>
+            <div class="card-body">
+                <div class="row text-center mb-4">
+                    <div class="col-md-4">
+                        <div class="p-3 border rounded bg-light">
+                            <h2 class="text-primary">{{ total_rows }}</h2>
+                            <span class="text-muted">Total Rows Parsed</span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-3 border rounded bg-success text-white">
+                            <h2>{{ new_count }}</h2>
+                            <span>New Contacts to Add</span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-3 border rounded bg-warning text-dark">
+                            <h2>{{ dup_count }}</h2>
+                            <span>Duplicates (Will be Skipped)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> <strong>Information:</strong> Data duplikat dideteksi berdasarkan kesamaan Nama ATAU Nomor Telepon dengan data yang sudah ada di database. Data duplikat akan <strong>dilewati (skipped)</strong> dan tidak akan menimpa data lama Anda.
+                </div>
+
+                <h5 class="mb-3">Data Preview (Top 100 rows)</h5>
+                <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                    <table class="table table-bordered table-hover table-sm fs-7">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th>Status</th>
+                                <th>Name</th>
+                                <th>Phone</th>
+                                <th>Birthday</th>
+                                <th>Address</th>
+                                <th>Organization</th>
+                                <th>Emails</th>
+                                <th>Other Info</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in preview_data[:100] %}
+                            <tr class="{% if row.is_duplicate %}table-warning text-muted{% else %}table-success{% endif %}">
+                                <td>
+                                    {% if row.is_duplicate %}
+                                    <span class="badge bg-warning text-dark">Duplicate</span>
+                                    {% else %}
+                                    <span class="badge bg-success">New</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ row.name }}</td>
+                                <td>{{ row.phone }}</td>
+                                <td>{{ row.birthday }}</td>
+                                <td>{{ row.address }}</td>
+                                <td>{{ row.organization }}</td>
+                                <td>{{ row.emails }}</td>
+                                <td>{{ row.other_info }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card-footer bg-light d-flex justify-content-end">
+                <form action="/superadmin" method="get" class="me-2">
+                    <button type="submit" class="btn btn-secondary"><i class="fas fa-times"></i> Cancel Import</button>
+                </form>
+                
+                <form action="/superadmin/import-csv-confirm" method="post">
+                    <!-- We store the JSON payload in a hidden input. This works well for small to medium CSVs. -->
+                    <input type="hidden" name="payload" value="{{ payload_json }}">
+                    <button type="submit" class="btn btn-success fw-bold" {% if new_count == 0 %}disabled{% endif %}>
+                        <i class="fas fa-check-circle"></i> Confirm Import {{ new_count }} Contacts
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

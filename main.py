@@ -1,5 +1,5 @@
-from fastapi import FastAPI, Depends, Request, Form, HTTPException, status
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import FastAPI, Depends, Request, Form, HTTPException, status, UploadFile, File
+from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
@@ -9,6 +9,12 @@ import json
 from datetime import date
 import random
 import os
+import csv
+import io
+import hashlib
+
+def hash_password(password: str) -> str:
+    return hashlib.sha256(password.encode()).hexdigest()
 
 import models
 from database import engine, SessionLocal, Base, get_db
@@ -26,7 +32,7 @@ def startup_event():
     db = SessionLocal()
     
     if db.query(models.Admin).count() == 0:
-        admin = models.Admin(username="ADMINCDM", password="CDM123", role="superadmin")
+        admin = models.Admin(username="ADMINCDM", password=hash_password("lovingkindness"), role="superadmin")
         db.add(admin)
         db.commit()
 
@@ -138,7 +144,7 @@ def read_login(request: Request):
 
 @app.post("/login")
 def login(request: Request, username: str = Form(...), password: str = Form(...), db: Session = Depends(get_db)):
-    admin = db.query(models.Admin).filter(models.Admin.username == username, models.Admin.password == password).first()
+    admin = db.query(models.Admin).filter(models.Admin.username == username, models.Admin.password == hash_password(password)).first()
     if admin:
         request.session["admin_id"] = admin.id
         request.session["role"] = admin.role
@@ -157,6 +163,7 @@ def read_superadmin(request: Request, db: Session = Depends(get_db), admin: mode
         return RedirectResponse(url="/", status_code=303)
     admins = db.query(models.Admin).all()
     logs = db.query(models.ActivityLog).order_by(models.ActivityLog.timestamp.desc()).limit(100).all()
+    events = db.query(models.Event).order_by(models.Event.date.desc()).all()
     
     # Quick Statistics
     stats = {
@@ -166,7 +173,7 @@ def read_superadmin(request: Request, db: Session = Depends(get_db), admin: mode
         "total_donors": db.query(models.BloodDonor).count()
     }
     
-    return templates.TemplateResponse(request=request, name="superadmin.html", context={"admins": admins, "logs": logs, "stats": stats, "admin": admin})
+    return templates.TemplateResponse(request=request, name="superadmin.html", context={"admins": admins, "logs": logs, "stats": stats, "events": events, "admin": admin})
 
 @app.post("/superadmin/add-admin")
 def add_admin(
@@ -178,7 +185,7 @@ def add_admin(
 ):
     if admin.role != "superadmin":
         return RedirectResponse(url="/", status_code=303)
-    new_admin = models.Admin(username=username, password=password, role="subadmin")
+    new_admin = models.Admin(username=username, password=hash_password(password), role="subadmin")
     db.add(new_admin)
     db.commit()
     log_activity(db, admin.id, "CREATE", "Admin", f"Created subadmin: {username}")
@@ -236,6 +243,143 @@ def delete_tag(
     referer = request.headers.get("referer", "/")
     return RedirectResponse(url=referer, status_code=303)
 
+@app.post("/events/{event_id}/delete")
+def delete_event(
+    request: Request,
+    event_id: int,
+    db: Session = Depends(get_db),
+    admin: models.Admin = Depends(require_admin)
+):
+    if admin.role != "superadmin":
+        return RedirectResponse(url="/", status_code=303)
+    
+    event = db.query(models.Event).filter(models.Event.id == event_id).first()
+    if event:
+        db.query(models.EventAttendance).filter(models.EventAttendance.event_id == event_id).delete()
+        db.delete(event)
+        db.commit()
+        log_activity(db, admin.id, "DELETE", "Event", f"Deleted event: {event.name}")
+    
+    referer = request.headers.get("referer", "/superadmin")
+    return RedirectResponse(url=referer, status_code=303)
+@app.get("/superadmin/export-contacts")
+def export_contacts(db: Session = Depends(get_db), admin: models.Admin = Depends(require_admin)):
+    if admin.role != "superadmin":
+        return RedirectResponse(url="/", status_code=303)
+        
+    contacts = db.query(models.Contact).order_by(models.Contact.id.asc()).all()
+    
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["name", "phone", "Birthday", "address", "organization", "emails", "Other Information"])
+    
+    for c in contacts:
+        extra = c.extra_info or {}
+        writer.writerow([
+            c.name or "",
+            c.phone or "",
+            extra.get("Birthday", ""),
+            extra.get("address", ""),
+            extra.get("organization", ""),
+            extra.get("emails", ""),
+            extra.get("Other Information", "")
+        ])
+    
+    output.seek(0)
+    response = StreamingResponse(iter([output.getvalue()]), media_type="text/csv")
+    response.headers["Content-Disposition"] = "attachment; filename=contacts_export.csv"
+    log_activity(db, admin.id, "EXPORT", "Contact", f"Exported {len(contacts)} contacts to CSV")
+    return response
+
+@app.post("/superadmin/import-csv-preview", response_class=HTMLResponse)
+async def import_csv_preview(request: Request, csv_file: UploadFile = File(...), db: Session = Depends(get_db), admin: models.Admin = Depends(require_admin)):
+    if admin.role != "superadmin":
+        return RedirectResponse(url="/", status_code=303)
+        
+    content = await csv_file.read()
+    decoded = content.decode('utf-8-sig') # Handle potential BOM
+    
+    reader = csv.DictReader(io.StringIO(decoded))
+    
+    preview_data = []
+    new_count = 0
+    dup_count = 0
+    
+    existing_contacts = db.query(models.Contact).all()
+    existing_keys = {f"{c.name.strip().lower()}|{c.phone.strip().lower()}" for c in existing_contacts if c.name and c.phone}
+    
+    for row in reader:
+        name = row.get("name", "").strip()
+        phone = row.get("phone", "").strip()
+        if not name or not phone:
+            continue
+            
+        is_duplicate = False
+        key = f"{name.lower()}|{phone.lower()}"
+        if key in existing_keys:
+            is_duplicate = True
+            dup_count += 1
+        else:
+            new_count += 1
+            existing_keys.add(key)
+            
+        preview_data.append({
+            "name": name,
+            "phone": phone,
+            "birthday": row.get("Birthday", ""),
+            "address": row.get("address", ""),
+            "organization": row.get("organization", ""),
+            "emails": row.get("emails", ""),
+            "other_info": row.get("Other Information", ""),
+            "is_duplicate": is_duplicate
+        })
+        
+    payload_json = json.dumps(preview_data)
+    
+    return templates.TemplateResponse(request=request, name="import_preview.html", context={
+        "preview_data": preview_data,
+        "total_rows": len(preview_data),
+        "new_count": new_count,
+        "dup_count": dup_count,
+        "payload_json": payload_json,
+        "admin": admin
+    })
+
+@app.post("/superadmin/import-csv-confirm")
+def import_csv_confirm(request: Request, payload: str = Form(...), db: Session = Depends(get_db), admin: models.Admin = Depends(require_admin)):
+    if admin.role != "superadmin":
+        return RedirectResponse(url="/", status_code=303)
+        
+    try:
+        data = json.loads(payload)
+    except:
+        return RedirectResponse(url="/superadmin", status_code=303)
+        
+    added_count = 0
+    new_contacts = []
+    
+    for row in data:
+        if row.get("is_duplicate"):
+            continue
+            
+        extra_info = {}
+        if row.get("birthday"): extra_info["Birthday"] = row["birthday"]
+        if row.get("address"): extra_info["address"] = row["address"]
+        if row.get("organization"): extra_info["organization"] = row["organization"]
+        if row.get("emails"): extra_info["emails"] = row["emails"]
+        if row.get("other_info"): extra_info["Other Information"] = row["other_info"]
+        
+        contact = models.Contact(name=row["name"], phone=row["phone"], extra_info=extra_info)
+        new_contacts.append(contact)
+        added_count += 1
+        
+    if new_contacts:
+        db.add_all(new_contacts)
+        db.commit()
+        
+    log_activity(db, admin.id, "IMPORT", "Contact", f"Imported {added_count} new contacts from CSV")
+    return RedirectResponse(url="/superadmin", status_code=303)
+
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -249,16 +393,21 @@ def read_contacts(request: Request, db: Session = Depends(get_db), admin: models
 def add_contact(
     name: str = Form(...),
     phone: str = Form(...),
-    extra_keys: list[str] = Form([]),
-    extra_values: list[str] = Form([]),
+    birthday: str = Form(""),
+    address: str = Form(""),
+    organization: str = Form(""),
+    emails: str = Form(""),
+    other_info: str = Form(""),
     tag_ids: list[str] = Form([]),
     db: Session = Depends(get_db),
     admin: models.Admin = Depends(require_admin)
 ):
     extra_info = {}
-    for k, v in zip(extra_keys, extra_values):
-        if k and v:
-            extra_info[k] = v
+    if birthday: extra_info["Birthday"] = birthday
+    if address: extra_info["address"] = address
+    if organization: extra_info["organization"] = organization
+    if emails: extra_info["emails"] = emails
+    if other_info: extra_info["Other Information"] = other_info
             
     contact = models.Contact(name=name, phone=phone, extra_info=extra_info)
     db.add(contact)
@@ -319,8 +468,11 @@ def edit_contact(
     contact_id: int,
     name: str = Form(...),
     phone: str = Form(...),
-    extra_keys: list[str] = Form([]),
-    extra_values: list[str] = Form([]),
+    birthday: str = Form(""),
+    address: str = Form(""),
+    organization: str = Form(""),
+    emails: str = Form(""),
+    other_info: str = Form(""),
     update_extra: bool = Form(False),
     tag_ids: list[str] = Form([]),
     db: Session = Depends(get_db),
@@ -333,9 +485,11 @@ def edit_contact(
         
         if update_extra:
             extra_info = {}
-            for k, v in zip(extra_keys, extra_values):
-                if k and v:
-                    extra_info[k] = v
+            if birthday: extra_info["Birthday"] = birthday
+            if address: extra_info["address"] = address
+            if organization: extra_info["organization"] = organization
+            if emails: extra_info["emails"] = emails
+            if other_info: extra_info["Other Information"] = other_info
             contact.extra_info = extra_info
             
         # Update tags

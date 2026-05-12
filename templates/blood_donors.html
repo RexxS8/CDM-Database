@@ -33,7 +33,17 @@
                     {% for item in donors_data %}
                     <tr data-search="{{ item.donor.name }} {{ item.donor.blood_type }}">
                         <td><strong>{{ item.donor.name }}</strong></td>
-                        <td>{{ item.donor.phone }}</td>
+                        <td>
+                            {% if item.donor.phone %}
+                                {% for p in item.donor.phone.split(',') %}
+                                    {% if p.strip() %}
+                                        <div class="mb-1"><span class="badge bg-light text-dark border"><i class="fas fa-phone-alt fa-xs text-muted"></i> {{ p.strip() }}</span></div>
+                                    {% endif %}
+                                {% endfor %}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
                         <td>
                             {% set bt = item.donor.blood_type %}
                             {% if bt == 'A' %}
@@ -95,6 +105,7 @@
                 <div class="mb-3">
                     <label class="form-label">Phone</label>
                     <input type="text" class="form-control" name="phone" required>
+                    <div class="form-text">Pisahkan dengan koma jika lebih dari 1 nomor</div>
                 </div>
                 <div class="row">
                     <div class="col-md-6 mb-3">
@@ -139,6 +150,7 @@
                 <div class="mb-3">
                     <label class="form-label">Phone</label>
                     <input type="text" class="form-control" name="phone" id="editDonorPhone" required>
+                    <div class="form-text">Pisahkan dengan koma jika lebih dari 1 nomor</div>
                 </div>
                 <div class="row">
                     <div class="col-md-6 mb-3">

@@ -69,7 +69,8 @@
                     </div>
                     <div class="col-md-3">
                         <label class="form-label">Phone</label>
-                        <input type="text" class="form-control" name="phone" required>
+                        <input type="text" class="form-control" name="phone" placeholder="0812..., 0856..." required>
+                        <div class="form-text text-white-50"><small>Pisahkan dengan koma untuk multi nomor</small></div>
                     </div>
                     <div class="col-md-3">
                         <label class="form-label">Companions (Rombongan)</label>
@@ -119,7 +120,17 @@
                                 {{ att.contact.name }}
                             </a>
                         </td>
-                        <td>{{ att.contact.phone }}</td>
+                        <td>
+                            {% if att.contact.phone %}
+                                {% for p in att.contact.phone.split(',') %}
+                                    {% if p.strip() %}
+                                        <div class="mb-1"><span class="badge bg-light text-dark border"><i class="fas fa-phone-alt fa-xs text-muted"></i> {{ p.strip() }}</span></div>
+                                    {% endif %}
+                                {% endfor %}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
                         <td>1</td>
                         <td>{{ att.companions }}</td>
                         <td><strong>{{ 1 + att.companions }}</strong></td>

@@ -44,6 +44,49 @@
     </div>
 </div>
 
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card shadow-sm border-primary">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-database"></i> Data Management (CSV Import & Export)</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <!-- Export Section -->
+                    <div class="col-md-6 border-end">
+                        <h6 class="text-primary"><i class="fas fa-file-export"></i> Export Contacts</h6>
+                        <p class="text-muted small">Download all contacts from the database as a CSV file.</p>
+                        <a href="/superadmin/export-contacts" class="btn btn-outline-primary">
+                            <i class="fas fa-download"></i> Download CSV
+                        </a>
+                    </div>
+                    <!-- Import Section -->
+                    <div class="col-md-6">
+                        <h6 class="text-success"><i class="fas fa-file-import"></i> Import Contacts</h6>
+                        <p class="text-muted small">Upload a CSV file to add multiple contacts. Duplicates will be verified before insertion.</p>
+                        <form action="/superadmin/import-csv-preview" method="post" enctype="multipart/form-data" class="d-flex align-items-center">
+                            <input type="file" name="csv_file" class="form-control me-2" accept=".csv" required>
+                            <button type="submit" class="btn btn-success text-nowrap"><i class="fas fa-upload"></i> Upload & Preview</button>
+                        </form>
+                        <div class="mt-2">
+                            <a class="text-decoration-none small text-info" data-bs-toggle="collapse" href="#csvFormatInfo" role="button" aria-expanded="false">
+                                <i class="fas fa-info-circle"></i> View required CSV format
+                            </a>
+                            <div class="collapse mt-2" id="csvFormatInfo">
+                                <div class="card card-body bg-light p-2 small">
+                                    <strong>Required Columns:</strong><br>
+                                    <code>name, phone, Birthday, address, organization, emails, Other Information</code>
+                                    <p class="mb-0 mt-1 text-muted">Make sure the first row contains exactly these headers (case-sensitive).</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="row">
     <!-- Sub Admins Management -->
     <div class="col-md-4">
@@ -121,6 +164,49 @@
                             {% else %}
                             <tr>
                                 <td colspan="5" class="text-center">No activity logs found.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <!-- Manage Events -->
+    <div class="col-md-12">
+        <div class="card shadow-sm mb-4 border-danger">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0"><i class="fas fa-calendar-times"></i> Manage Events</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th>Event Name</th>
+                                <th>Date</th>
+                                <th class="text-end">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for e in events %}
+                            <tr>
+                                <td><a href="/events/{{ e.id }}" class="text-decoration-none fw-bold text-success">{{ e.name }}</a></td>
+                                <td>{{ e.date.strftime('%d %b %Y') if e.date else '' }}</td>
+                                <td class="text-end">
+                                    <form action="/events/{{ e.id }}/delete" method="post" style="display:inline;">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to delete the event \'{{ e.name }}\'? This will also delete all attendance records for this event.')">
+                                            <i class="fas fa-trash"></i> Delete
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="3" class="text-center text-muted py-3">No events found.</td>
                             </tr>
                             {% endfor %}
                         </tbody>
